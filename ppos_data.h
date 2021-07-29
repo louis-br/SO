@@ -28,6 +28,8 @@ typedef struct task_t
    
    int staticPriority;
    int dynamicPriority;
+   unsigned char userTask;
+   int quantum; 
 } task_t ;
 
 // estrutura que define um semáforo

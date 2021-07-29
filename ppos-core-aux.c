@@ -6,7 +6,14 @@
 // Coloque aqui as suas modificações, p.ex. includes, defines variáveis, 
 // estruturas e funções
 
+#include <signal.h>
+#include <sys/time.h>
 
+// estrutura que define um tratador de sinal (deve ser global ou static)
+struct sigaction action ;
+
+// estrutura de inicialização to timer
+struct itimerval timer ;
 
 void task_setprio (task_t *task, int prio) {
     if (prio > 20) {
@@ -58,7 +65,14 @@ task_t * scheduler() {
 }
 
 void tick_handler() {
-    printf("\ntemporizador\n");
+    task_t *task = taskExec;
+    if (preemption && task->userTask) {
+        (task->quantum)--;
+        if (task->quantum <= 0) {
+            task_suspend(task, &readyQueue);
+            task_switch(taskDisp);
+        }
+    }
 }
 
 // ****************************************************************************
@@ -67,7 +81,6 @@ void tick_handler() {
 
 void before_ppos_init () {
     // put your customization here
-    PPOS_PREEMPT_DISABLE
 #ifdef DEBUG
     printf("\ninit - BEFORE");
 #endif
@@ -75,6 +88,26 @@ void before_ppos_init () {
 
 void after_ppos_init () {
     // put your customization here
+    // registra a ação para o sinal de timer SIGALRM
+    action.sa_handler = tick_handler ;
+    sigemptyset (&action.sa_mask) ;
+    action.sa_flags = 0 ;
+    if (sigaction (SIGALRM, &action, 0) < 0)
+    {
+        perror ("Erro em sigaction: ") ;
+    }
+
+    // ajusta valores do temporizador
+    timer.it_value.tv_usec = 1000 ;      // primeiro disparo, em micro-segundos
+    timer.it_value.tv_sec  = 0 ;      // primeiro disparo, em segundos
+    timer.it_interval.tv_usec = 1000 ;   // disparos subsequentes, em micro-segundos
+    timer.it_interval.tv_sec  = 0 ;   // disparos subsequentes, em segundos
+
+    // arma o temporizador ITIMER_REAL (vide man setitimer)
+    if (setitimer (ITIMER_REAL, &timer, 0) < 0)
+    {
+        perror ("Erro em setitimer: ") ;
+    }
 #ifdef DEBUG
     printf("\ninit - AFTER");
 #endif
@@ -84,6 +117,12 @@ void before_task_create (task_t *task ) {
     // put your customization here
     task->staticPriority = 0;
     task->dynamicPriority = 0;
+    task->userTask = 1;
+    task->quantum = 20;
+
+    if (task == taskDisp) {
+        task->userTask = 0;
+    }
 #ifdef DEBUG
     printf("\ntask_create - BEFORE - [%d]", task->id);
 #endif
@@ -154,6 +193,7 @@ void after_task_suspend( task_t *task ) {
 
 void before_task_resume(task_t *task) {
     // put your customization here
+    task->quantum = 20;
 #ifdef DEBUG
     printf("\ntask_resume - BEFORE - [%d]", task->id);
 #endif
