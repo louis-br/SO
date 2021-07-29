@@ -400,6 +400,12 @@ int after_mqueue_msgs (mqueue_t *queue) {
 }
 
 void task_setprio (task_t *task, int prio) {
+    if (prio > 20) {
+        prio = 20;
+    }
+    else if (prio < -20) {
+        prio = -20;
+    }
     if (task == NULL) {
         task = taskExec;
         if (task == NULL) {
