@@ -7,67 +7,12 @@
 // estruturas e funções
 
 
-
-void task_setprio (task_t *task, int prio) {
-    if (prio > 20) {
-        prio = 20;
-    }
-    else if (prio < -20) {
-        prio = -20;
-    }
-    if (task == NULL) {
-        task = taskExec;
-        if (task == NULL) {
-            return;
-        }
-    }
-    task->staticPriority = prio;
-    task->dynamicPriority = prio;
-}
-
-int task_getprio (task_t *task) {
-    if (task == NULL) {
-        task = taskExec;
-        if (task == NULL) {
-            return 0;
-        }
-    }
-    return task->staticPriority;
-}
-
-task_t * scheduler() {
-    // PRIOd scheduler
-    if ( readyQueue != NULL ) {
-        task_t *max = readyQueue;
-        int maxPriority = readyQueue->dynamicPriority;
-        (readyQueue->dynamicPriority)--;
-        for (task_t *i = readyQueue->next; i != readyQueue; i = i->next) {
-            int priority = i->dynamicPriority;
-            if (priority <= maxPriority) {
-                max = i;
-                maxPriority = priority;
-            }
-            if (priority > -20) {
-                (i->dynamicPriority)--;
-            }
-        }
-        max->dynamicPriority = max->staticPriority;
-        return max;
-    }
-    return NULL;
-}
-
-void tick_handler() {
-    printf("\ntemporizador\n");
-}
-
 // ****************************************************************************
 
 
 
 void before_ppos_init () {
     // put your customization here
-    PPOS_PREEMPT_DISABLE
 #ifdef DEBUG
     printf("\ninit - BEFORE");
 #endif
@@ -82,8 +27,6 @@ void after_ppos_init () {
 
 void before_task_create (task_t *task ) {
     // put your customization here
-    task->staticPriority = 0;
-    task->dynamicPriority = 0;
 #ifdef DEBUG
     printf("\ntask_create - BEFORE - [%d]", task->id);
 #endif
@@ -453,5 +396,12 @@ int after_mqueue_msgs (mqueue_t *queue) {
     return 0;
 }
 
+task_t * scheduler() {
+    // FCFS scheduler
+    if ( readyQueue != NULL ) {
+        return readyQueue;
+    }
+    return NULL;
+}
 
 
