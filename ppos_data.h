@@ -26,8 +26,8 @@ typedef struct task_t
 
    // ... (outros campos deve ser adicionados APOS esse comentario)
    
-   char staticPriority;
-   char dynamicPriority;
+   int staticPriority;
+   int dynamicPriority;
 } task_t ;
 
 // estrutura que define um semáforo

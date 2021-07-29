@@ -430,10 +430,10 @@ task_t * scheduler() {
     // PRIOd scheduler
     if ( readyQueue != NULL ) {
         task_t *max = readyQueue;
-        short maxPriority = readyQueue->dynamicPriority;
+        int maxPriority = readyQueue->dynamicPriority;
         (readyQueue->dynamicPriority)--;
         for (task_t *i = readyQueue->next; i != readyQueue; i = i->next) {
-            short priority = i->dynamicPriority;
+            int priority = i->dynamicPriority;
             if (priority <= maxPriority) {
                 max = i;
                 maxPriority = priority;
