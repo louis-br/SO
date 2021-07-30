@@ -44,31 +44,35 @@ int task_getprio (task_t *task) {
 
 task_t * scheduler() {
     // PRIOd scheduler
-    if ( readyQueue != NULL ) {
-        task_t *max = readyQueue;
-        int maxPriority = readyQueue->dynamicPriority;
-        (readyQueue->dynamicPriority)--;
-        for (task_t *i = readyQueue->next; i != readyQueue; i = i->next) {
-            int priority = i->dynamicPriority;
-            if (priority <= maxPriority) {
-                max = i;
-                maxPriority = priority;
-            }
-            if (priority > -20) {
-                (i->dynamicPriority)--;
-            }
-        }
-        max->dynamicPriority = max->staticPriority;
-        return max;
+    if ( readyQueue == NULL ) {
+        return NULL;
     }
-    return NULL;
+    task_t *max = NULL;
+    int maxPriority = 21;
+    task_t *i = readyQueue;
+    do {
+        int priority = i->dynamicPriority;
+        if (priority <= maxPriority) {
+            max = i;
+            maxPriority = priority;
+        }
+        if (priority > -20) {
+            (i->dynamicPriority)--;
+        }
+        i = i->next;
+    } while (i != readyQueue);
+    max->dynamicPriority = max->staticPriority;
+    return max;
 }
 
+
 void tick_handler() {
+    PPOS_PREEMPT_DISABLE
     task_t *task = taskExec;
     if (preemption && task->userTask) {
         (task->quantum)--;
         if (task->quantum <= 0) {
+            task->quantum = 20;
             task_suspend(task, &readyQueue);
             task_switch(taskDisp);
         }
@@ -193,7 +197,6 @@ void after_task_suspend( task_t *task ) {
 
 void before_task_resume(task_t *task) {
     // put your customization here
-    task->quantum = 20;
 #ifdef DEBUG
     printf("\ntask_resume - BEFORE - [%d]", task->id);
 #endif
