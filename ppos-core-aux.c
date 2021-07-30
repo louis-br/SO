@@ -6,6 +6,8 @@
 // Coloque aqui as suas modificações, p.ex. includes, defines variáveis, 
 // estruturas e funções
 
+//#define DEBUG 1
+
 #include <signal.h>
 #include <sys/time.h>
 
@@ -14,6 +16,10 @@ struct sigaction action ;
 
 // estrutura de inicialização to timer
 struct itimerval timer ;
+
+/*unsigned int systime() {
+    return systemTime;
+}*/
 
 void task_setprio (task_t *task, int prio) {
     if (prio > 20) {
@@ -49,25 +55,25 @@ task_t * scheduler() {
     }
     task_t *max = NULL;
     int maxPriority = 21;
-    task_t *i = readyQueue;
+    task_t *aux = readyQueue;
     do {
-        int priority = i->dynamicPriority;
+        int priority = aux->dynamicPriority;
         if (priority <= maxPriority) {
-            max = i;
+            max = aux;
             maxPriority = priority;
         }
         if (priority > -20) {
-            (i->dynamicPriority)--;
+            (aux->dynamicPriority)--;
         }
-        i = i->next;
-    } while (i != readyQueue);
+        aux = aux->next;
+    } while (aux != readyQueue);
     max->dynamicPriority = max->staticPriority;
     return max;
 }
 
-
 void tick_handler() {
-    PPOS_PREEMPT_DISABLE
+    //PPOS_PREEMPT_DISABLE
+    systemTime++;
     task_t *task = taskExec;
     if (preemption && task->userTask) {
         (task->quantum)--;
@@ -85,6 +91,7 @@ void tick_handler() {
 
 void before_ppos_init () {
     // put your customization here
+    systemTime = 0;
 #ifdef DEBUG
     printf("\ninit - BEFORE");
 #endif
@@ -123,6 +130,9 @@ void before_task_create (task_t *task ) {
     task->dynamicPriority = 0;
     task->userTask = 1;
     task->quantum = 20;
+    task->creationDate = systemTime;
+    task->lastSwitchDate = 0;
+    task->cpuTime = 0;
 
     if (task == taskDisp) {
         task->userTask = 0;
@@ -148,6 +158,8 @@ void before_task_exit () {
 
 void after_task_exit () {
     // put your customization here
+    task_t *task = taskExec;
+    printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n", task->id, systemTime - task->creationDate, task->cpuTime, task->activations);
 #ifdef DEBUG
     printf("\ntask_exit - AFTER- [%d]", taskExec->id);
 #endif
@@ -155,9 +167,20 @@ void after_task_exit () {
 
 void before_task_switch ( task_t *task ) {
     // put your customization here
+    task_t *exec = taskExec;
+    if (exec == NULL) {
+        return;
+    }
+    exec->cpuTime += systemTime - exec->lastSwitchDate;
+    if (task == NULL) {
+        return;
+    }
+    task->activations++;
+    task->lastSwitchDate = systemTime;
 #ifdef DEBUG
-    printf("\ntask_switch - BEFORE - [%d -> %d]", taskExec->id, task->id);
+    printf("\ntask_switch - BEFORE - [%d -> %d]", exec->id, task->id);
 #endif
+    //printf(" (activations: %d)\n", task->activations);
 }
 
 void after_task_switch ( task_t *task ) {
