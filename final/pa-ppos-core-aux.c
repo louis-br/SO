@@ -6,7 +6,7 @@
 // Coloque aqui as suas modificações, p.ex. includes, defines variáveis, 
 // estruturas e funções
 // PROJETO A
-// Louis Brommelstroet      (RA: 2127997)
+// Louis Brommelstroet         (RA: 2127997)
 // Diego Henrique Arenas Okawa (RA: 2127890)
 
 #include <signal.h>
