@@ -26,14 +26,14 @@ typedef struct task_t
 
    // ... (outros campos deve ser adicionados APOS esse comentario)
    
-   int staticPriority;
-   int dynamicPriority;
-   unsigned char userTask;
-   int quantum; 
-   int creationDate;
-   int lastSwitchDate;
-   int cpuTime;
-   int activations;
+   int staticPriority;          //escalonador priod: prioridade estática 
+   int dynamicPriority;         //escalonador priod: prioridade dinâmica
+   unsigned char userTask;      //preempção: se a tarefa é do usuário ou não
+   int quantum;                 //quantidade de ticks antes da preempção 
+   int creationDate;            //momento da criação da tarefa
+   int lastSwitchDate;          //último momento em que a tarefa foi ativada
+   int cpuTime;                 //tempo do processador utilizado na tarefa
+   int activations;             //numero de ativações, trocas para esta tarefa
 } task_t ;
 
 // estrutura que define um semáforo

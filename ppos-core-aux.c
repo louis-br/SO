@@ -6,8 +6,6 @@
 // Coloque aqui as suas modificações, p.ex. includes, defines variáveis, 
 // estruturas e funções
 
-//#define DEBUG 1
-
 #include <signal.h>
 #include <sys/time.h>
 
@@ -17,7 +15,7 @@ struct sigaction action ;
 // estrutura de inicialização to timer
 struct itimerval timer ;
 
-/*unsigned int systime() {
+/*unsigned int systime() {  //função já implementada pela libppos_static.a
     return systemTime;
 }*/
 
@@ -85,6 +83,14 @@ void tick_handler() {
     }
 }
 
+void update_task_cputime(task_t *task) {
+    if (task == NULL) {
+        return;
+    }
+    task->cpuTime += systemTime - task->lastSwitchDate;
+    task->lastSwitchDate = systemTime;
+}
+
 // ****************************************************************************
 
 
@@ -133,6 +139,7 @@ void before_task_create (task_t *task ) {
     task->creationDate = systemTime;
     task->lastSwitchDate = 0;
     task->cpuTime = 0;
+    task->activations = 0;
 
     if (task == taskDisp) {
         task->userTask = 0;
@@ -159,6 +166,7 @@ void before_task_exit () {
 void after_task_exit () {
     // put your customization here
     task_t *task = taskExec;
+    update_task_cputime(task);  //a tarefa termina antes de trocar para a proxima
     printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n", task->id, systemTime - task->creationDate, task->cpuTime, task->activations);
 #ifdef DEBUG
     printf("\ntask_exit - AFTER- [%d]", taskExec->id);
@@ -167,20 +175,16 @@ void after_task_exit () {
 
 void before_task_switch ( task_t *task ) {
     // put your customization here
-    task_t *exec = taskExec;
-    if (exec == NULL) {
-        return;
-    }
-    exec->cpuTime += systemTime - exec->lastSwitchDate;
+    update_task_cputime(taskExec);
     if (task == NULL) {
         return;
     }
     task->activations++;
     task->lastSwitchDate = systemTime;
 #ifdef DEBUG
-    printf("\ntask_switch - BEFORE - [%d -> %d]", exec->id, task->id);
+    printf("\ntask_switch - BEFORE - [%d -> %d]", taskExec->id, task->id);
+    printf(" lastSwitchDate[%d]: %d ", task->id, task->lastSwitchDate);
 #endif
-    //printf(" (activations: %d)\n", task->activations);
 }
 
 void after_task_switch ( task_t *task ) {
@@ -519,5 +523,12 @@ int after_mqueue_msgs (mqueue_t *queue) {
     return 0;
 }
 
+/*task_t * scheduler() {
+    // FCFS scheduler
+    if ( readyQueue != NULL ) {
+        return readyQueue;
+    }
+    return NULL;
+}*/
 
 
