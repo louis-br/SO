@@ -7,6 +7,8 @@
 #ifndef __DISK_MGR__
 #define __DISK_MGR__
 
+#include "ppos.h"
+
 // estruturas de dados e rotinas de inicializacao e acesso
 // a um dispositivo de entrada/saida orientado a blocos,
 // tipicamente um disco rigido.
@@ -14,6 +16,10 @@
 // estrutura que representa um disco no sistema operacional
 typedef struct
 {
+  int numblocks;
+  int blocksize;
+  struct task_t* diskQueue;
+  struct sigaction action ; // estrutura que define um tratador de sinal (deve ser global ou static)
   // completar com os campos necessarios
 } disk_t ;
 

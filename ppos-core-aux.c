@@ -13,10 +13,10 @@
 #include <sys/time.h>
 
 // estrutura que define um tratador de sinal (deve ser global ou static)
-struct sigaction action ;
+static struct sigaction action ;
 
 // estrutura de inicialização to timer
-struct itimerval timer ;
+static struct itimerval timer ;
 
 /*unsigned int systime() {  //função já implementada pela libppos_static.a
     return systemTime;
@@ -73,7 +73,7 @@ task_t * scheduler() {
 }
 
 void tick_handler() {
-    //PPOS_PREEMPT_DISABLE
+    PPOS_PREEMPT_DISABLE
     systemTime++;
     task_t *task = taskExec;
     if (preemption && task->userTask) {
