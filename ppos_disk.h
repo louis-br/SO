@@ -8,19 +8,37 @@
 #define __DISK_MGR__
 
 #include "ppos.h"
+#include "ppos-core-globals.h"
+#include "disk.h"
+#include <signal.h>
 
 // estruturas de dados e rotinas de inicializacao e acesso
 // a um dispositivo de entrada/saida orientado a blocos,
 // tipicamente um disco rigido.
 
+// estrura que representa um pedido de escrita ou leitura no disco
+typedef struct
+{
+  struct task_t *prev, *next ;		// ponteiros para usar em filas
+  task_t *task;
+  int write; // 0 = leitura, 1 = escrita
+  int block;
+  void *buffer;
+} disk_request_t ;
+
 // estrutura que representa um disco no sistema operacional
 typedef struct
 {
+  // completar com os campos necessarios
+  task_t dispatcher;
   int numblocks;
   int blocksize;
-  struct task_t* diskQueue;
+  task_t *taskQueue;
+  disk_request_t *requestQueue;
+  disk_request_t *currentRequest;
+  int signal;
+  //semaphore_t semaphore;
   struct sigaction action ; // estrutura que define um tratador de sinal (deve ser global ou static)
-  // completar com os campos necessarios
 } disk_t ;
 
 // inicializacao do gerente de disco
