@@ -37,7 +37,7 @@ typedef struct
   disk_request_t *requestQueue;
   disk_request_t *currentRequest;
   int signal;
-  //semaphore_t semaphore;
+  semaphore_t semaphore;
   struct sigaction action ; // estrutura que define um tratador de sinal (deve ser global ou static)
 } disk_t ;
 

@@ -13,8 +13,9 @@ disk_request_t *disk_mgr_scheduler() {
 void disk_mgr_dispatcher () {
     //print("hello dispatcher\n");
     while (1) {
-        //sem_down(&disk.semaphore);
-        if (disk.signal && disk.currentRequest != NULL) {
+        printf("sem_disp: %d\n", disk.semaphore.value);
+        sem_down(&disk.semaphore);
+        if (disk.currentRequest != NULL && disk.signal) {
             disk.signal = 0;
             task_resume(disk.currentRequest->task);
             disk_request_t *request = disk.currentRequest;
@@ -33,9 +34,10 @@ void disk_mgr_dispatcher () {
             }
             queue_remove((queue_t**)&disk.requestQueue, (queue_t*)request);
         }
-        //sem_up(&disk.semaphore);
+        printf("sem_disp: %d\n", disk.semaphore.value);
+        task_suspend(taskExec, &disk.taskQueue);//disk.taskQueue
+        sem_up(&disk.semaphore);
         //print("exec: %d diskdisp: %d disp: %d\n", taskExec->id, disk.dispatcher.id, taskDisp->id);
-        task_suspend(taskExec, &disk.taskQueue);
         task_switch(taskDisp);
     }
 }
@@ -56,7 +58,7 @@ int disk_mgr_init (int *numBlocks, int *blockSize) {
 
     //print("init %p\n", disk.requestQueue);
 
-    //sem_create(&disk.semaphore, 0);
+    sem_create(&disk.semaphore, 1);
 
     if (disk_cmd (DISK_CMD_INIT, 0, 0) < 0) {
         return -1;
@@ -96,24 +98,35 @@ int disk_request_exec(int write, int block, void *buffer) {
     task_t *task = taskExec;
     disk_request_t *request = disk_request_new(task, write, block, buffer);
 
-    //sem_down(&disk.semaphore);
+    //printf("sem: %d\n", disk.semaphore.value);
+
+    sem_down(&disk.semaphore);
 
     queue_append((queue_t**)&disk.requestQueue, (queue_t*)request);
-    int state = disk.dispatcher.state;
+    task_t* taskQueue = disk.taskQueue;
+    task_t* dispatcher = &disk.dispatcher;
+    int state = dispatcher->state;
+    
+    sem_up(&disk.semaphore);
+
     if (state == 't') { //PPOS_TASK_STATE_TERMINATED
         return -1;
     }
     //print("resume state: %c", state);
     if (state == 's' || state == 'r') { //PPOS_TASK_STATE_SUSPENDED, PPOS_TASK_STATE_READY
-        task_resume(&disk.dispatcher);
+        task_resume(dispatcher);//task_suspend(&disk.dispatcher, &readyQueue);  //task_resume não pode ser usado em tarefas suspensas por semáforos, libere os semáforos antes de chamar
     }
 
-
     //print("switch\n");
-    task_suspend(task, &disk.taskQueue);
-    //sem_up(&disk.semaphore);
+    //task_suspend(task, &sleepQueue);
+    //printf("sem: %d active: %d\n", disk.semaphore.value, disk.semaphore.active);
+    //disk.semaphore.value = 0;
+    //printf("sem_down taskQueue\n");
+    task_suspend(task, &taskQueue); //disk.taskQueue
+    //printf("sem_up taskQueue\n");
     task_switch(taskDisp);
     //print("return\n");
+    //while (1) {};
     return 0;
 }
 
