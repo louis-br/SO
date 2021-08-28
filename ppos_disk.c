@@ -98,6 +98,9 @@ int disk_mgr_init (int *numBlocks, int *blockSize) {
 
 disk_request_t *disk_request_new(task_t *task, int write, int block, void *buffer) {//, void *buffer) {
     disk_request_t *request = (disk_request_t*)malloc(sizeof(disk_request_t));
+    if (request == NULL) {
+        return NULL;
+    }
     request->task = task;
     request->write = write;
     request->block = block;
@@ -108,14 +111,18 @@ disk_request_t *disk_request_new(task_t *task, int write, int block, void *buffe
 int disk_request_exec(int write, int block, void *buffer) {
     task_t *task = taskExec;
     disk_request_t *request = disk_request_new(task, write, block, buffer);
+    
+    if (request == NULL) {
+        return -1;
+    }
 
     //printf("sem: %d\n", disk.semaphore.value);
 
     sem_down(&disk.semaphore);
 
     queue_append((queue_t**)&disk.requestQueue, (queue_t*)request);
-    task_t** taskQueue = &disk.taskQueue;
-    task_t* dispatcher = &disk.dispatcher;
+    task_t **taskQueue = &disk.taskQueue;
+    task_t *dispatcher = &disk.dispatcher;
     int state = dispatcher->state;
     
     sem_up(&disk.semaphore);
