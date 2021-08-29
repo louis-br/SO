@@ -14,25 +14,63 @@ disk_request_t *disk_mgr_scheduler() {
     return NULL;
 }
 
+disk_request_t *disk_mgr_scheduler_sstf() {
+    if (disk.requestQueue == NULL) {
+        return NULL;
+    }
+
+    int lastBlock = disk.lastBlock;
+    int minDiff = disk.numblocks + 1;
+    disk_request_t *min = disk.requestQueue;
+    disk_request_t *aux = disk.requestQueue;
+    do {
+        if (min != aux) {
+            int block = aux->block;
+            int diff = block - lastBlock;
+            if (diff < 0) {
+                diff = -diff;
+            }
+            if (diff < minDiff) {
+                minDiff = diff;
+                min = aux;
+            }    
+        }
+        aux = aux->next;
+    } while (aux != NULL && aux != disk.requestQueue);
+    return min;
+}
+
 disk_request_t *disk_mgr_scheduler_cscan() {
     // CSCAN scheduler
     if (disk.requestQueue == NULL) {
         return NULL;
     }
 
-    int lastBlock = lastBlock;
-    int minBlock = 0;
-    disk_request_t *min = disk.requestQueue;
+    int lastBlock = disk.lastBlock;
+    int minBlock = disk.numblocks + 1;
+    disk_request_t *min = NULL;
     disk_request_t *aux = disk.requestQueue;
     do {
-        int block = aux->block;
-        if (block >= lastBlock && block < minBlock) {
-            minBlock = block;
-            min = aux;
+        do {
+            int block = aux->block;
+            if (block >= lastBlock && block < minBlock) {
+                minBlock = block;
+                min = aux;
+            }
+            aux = aux->next;
+        } while (aux != NULL && aux != disk.requestQueue);
+        if (min == NULL) {
+            lastBlock = 0;
+            minBlock = disk.numblocks + 1;
         }
-        aux = aux->next;
-    } while (aux != NULL && aux != disk.requestQueue);
+        printf("NULL\n");
+    } while (min == NULL);
+    printf("cscan lastBlock: %d\n", lastBlock);
     return min;
+}
+
+void print_id(void* t) {
+    printf("%d ", ((task_t*)t)->id);
 }
 
 void disk_mgr_dispatcher () {
@@ -70,6 +108,9 @@ void disk_mgr_dispatcher () {
             }
         }
         printf("sem_disp: %d\n", disk.semaphore.value);
+        queue_print("taskQueue: ", (queue_t*)disk.taskQueue, &print_id);
+        queue_print("readyQueue: ", (queue_t*)readyQueue, &print_id);
+        queue_print("sleepQueue: ", (queue_t*)sleepQueue, &print_id);
         task_suspend(taskExec, &disk.taskQueue);//disk.taskQueue
         sem_up(&disk.semaphore);
         //print("exec: %d diskdisp: %d disp: %d\n", taskExec->id, disk.dispatcher.id, taskDisp->id);
@@ -78,9 +119,11 @@ void disk_mgr_dispatcher () {
 }
 
 void disk_mgr_handler(int signum) {
+    printf("SIGNAL BEGIN\n");
     sem_down(&disk.semaphore);
     disk.signal = 1;
     sem_up(&disk.semaphore);
+    printf("SIGNAL END\n");
     task_switch(&disk.dispatcher);
     //disk_mgr_dispatcher(1);
     //print("sinal: %d", signum);
@@ -131,6 +174,8 @@ disk_request_t *disk_request_new(task_t *task, int write, int block, void *buffe
     if (request == NULL) {
         return NULL;
     }
+    request->prev = NULL;
+    request->next = NULL;
     request->task = task;
     request->write = write;
     request->block = block;
