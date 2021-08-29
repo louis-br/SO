@@ -31,7 +31,7 @@ typedef struct
 {
   // completar com os campos necessarios
   task_t dispatcher;              // tarefa gerenciadora das requisições
-  int numblocks;                  // número total do disco físico
+  int numblocks;                  // número total de blocos do disco físico
   int blocksize;                  // tamanho dos blocos do disco físico
   int lastBlock;                  // ultimo bloco acessado
   int totalSeekTime;              // total de blocos percorridos
