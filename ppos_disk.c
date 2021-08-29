@@ -15,6 +15,7 @@ disk_request_t *disk_mgr_scheduler() {
 }
 
 disk_request_t *disk_mgr_scheduler_sstf() {
+    // SSTF scheduler
     if (disk.requestQueue == NULL) {
         return NULL;
     }
@@ -33,7 +34,7 @@ disk_request_t *disk_mgr_scheduler_sstf() {
             if (diff < minDiff) {
                 minDiff = diff;
                 min = aux;
-            }    
+            }
         }
         aux = aux->next;
     } while (aux != NULL && aux != disk.requestQueue);
@@ -48,23 +49,25 @@ disk_request_t *disk_mgr_scheduler_cscan() {
 
     int lastBlock = disk.lastBlock;
     int minBlock = disk.numblocks + 1;
-    disk_request_t *min = NULL;
+    int minGlobalBlock = minBlock;
+    disk_request_t *min = disk.requestQueue;
+    disk_request_t *minGlobal = disk.requestQueue;
     disk_request_t *aux = disk.requestQueue;
     do {
-        do {
-            int block = aux->block;
-            if (block >= lastBlock && block < minBlock) {
-                minBlock = block;
-                min = aux;
-            }
-            aux = aux->next;
-        } while (aux != NULL && aux != disk.requestQueue);
-        if (min == NULL) {
-            lastBlock = 0;
-            minBlock = disk.numblocks + 1;
+        int block = aux->block;
+        if (block < minGlobalBlock) {
+            minGlobalBlock = block;
+            minGlobal = aux;
         }
-        printf("NULL\n");
-    } while (min == NULL);
+        if (block >= lastBlock && block < minBlock) {
+            minBlock = block;
+            min = aux;
+        }
+        aux = aux->next;
+    } while (aux != NULL && aux != disk.requestQueue);
+    if (min == NULL) {
+        min = minGlobal;
+    }
     printf("cscan lastBlock: %d\n", lastBlock);
     return min;
 }
@@ -103,6 +106,13 @@ void disk_mgr_dispatcher () {
             printf("request block: %d write: %d status: %d buffer: %s\n", request->block, request->write, status, (char*)request->buffer);
             if (status >= 0) {
                 disk.currentRequest = request;
+                int diff = request->block - disk.lastBlock;
+                if (diff < 0) {
+                    diff = -diff;
+                }
+                printf("blocos percorridos: %d + %d = ", disk.totalSeekTime, diff);
+                disk.totalSeekTime += diff;
+                printf("%d\n", disk.totalSeekTime);
                 disk.lastBlock = request->block;
                 queue_remove((queue_t**)&disk.requestQueue, (queue_t*)request);
             }
@@ -135,6 +145,7 @@ int disk_mgr_init (int *numBlocks, int *blockSize) {
     disk.numblocks = 0;
     disk.blocksize = 0;
     disk.lastBlock = 0;
+    disk.totalSeekTime = 0;
     disk.taskQueue = NULL;
     disk.requestQueue = NULL;
     disk.currentRequest = NULL;

@@ -34,6 +34,7 @@ typedef struct
   int numblocks;
   int blocksize;
   int lastBlock;
+  int totalSeekTime;
   task_t *taskQueue;
   disk_request_t *requestQueue;
   disk_request_t *currentRequest;
