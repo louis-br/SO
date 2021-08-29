@@ -73,7 +73,7 @@ task_t * scheduler() {
 }
 
 void tick_handler() {
-    //PPOS_PREEMPT_DISABLE
+    PPOS_PREEMPT_DISABLE
     systemTime++;
     task_t *task = taskExec;
     if (preemption && task->userTask) {
