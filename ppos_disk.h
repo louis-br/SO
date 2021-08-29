@@ -17,9 +17,9 @@
 // tipicamente um disco rigido.
 
 // estrura que representa um pedido de escrita ou leitura no disco
-typedef struct
+typedef struct disk_request_t
 {
-  struct task_t *prev, *next ;		// ponteiros para usar em filas
+  struct disk_request_t *prev, *next ;		// ponteiros para usar em filas
   task_t *task;
   int write; // 0 = leitura, 1 = escrita
   int block;
@@ -33,12 +33,13 @@ typedef struct
   task_t dispatcher;
   int numblocks;
   int blocksize;
+  int lastBlock;
   task_t *taskQueue;
   disk_request_t *requestQueue;
   disk_request_t *currentRequest;
   int signal;
   semaphore_t semaphore;
-  struct sigaction action ; // estrutura que define um tratador de sinal (deve ser global ou static)
+  struct sigaction action; // estrutura que define um tratador de sinal (deve ser global ou static)
 } disk_t ;
 
 // inicializacao do gerente de disco

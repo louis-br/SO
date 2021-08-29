@@ -2,12 +2,37 @@
 
 static disk_t disk;
 
+#ifndef DISK_MGR_SCHEDULER
+#define DISK_MGR_SCHEDULER disk_mgr_scheduler
+#endif
+
 disk_request_t *disk_mgr_scheduler() {
     // FCFS scheduler
     if (disk.requestQueue != NULL) {
         return disk.requestQueue;
     }
     return NULL;
+}
+
+disk_request_t *disk_mgr_scheduler_cscan() {
+    // CSCAN scheduler
+    if (disk.requestQueue == NULL) {
+        return NULL;
+    }
+
+    int lastBlock = lastBlock;
+    int minBlock = 0;
+    disk_request_t *min = disk.requestQueue;
+    disk_request_t *aux = disk.requestQueue;
+    do {
+        int block = aux->block;
+        if (block >= lastBlock && block < minBlock) {
+            minBlock = block;
+            min = aux;
+        }
+        aux = aux->next;
+    } while (aux != NULL && aux != disk.requestQueue);
+    return min;
 }
 
 void disk_mgr_dispatcher () {
@@ -29,7 +54,7 @@ void disk_mgr_dispatcher () {
         }
 
         if (disk.currentRequest == NULL && (disk_cmd(DISK_CMD_STATUS, 0, 0) == DISK_STATUS_IDLE) && (disk.requestQueue != NULL)) {
-            disk_request_t *request = disk_mgr_scheduler();
+            disk_request_t *request = DISK_MGR_SCHEDULER();
             int status = -1;
             if (request->write) {
                 status = disk_cmd(DISK_CMD_WRITE, request->block, request->buffer);
@@ -40,6 +65,7 @@ void disk_mgr_dispatcher () {
             printf("request block: %d write: %d status: %d buffer: %s\n", request->block, request->write, status, (char*)request->buffer);
             if (status >= 0) {
                 disk.currentRequest = request;
+                disk.lastBlock = request->block;
                 queue_remove((queue_t**)&disk.requestQueue, (queue_t*)request);
             }
         }
@@ -63,9 +89,13 @@ void disk_mgr_handler(int signum) {
 int disk_mgr_init (int *numBlocks, int *blockSize) {
     task_create(&disk.dispatcher, &disk_mgr_dispatcher, NULL);
 
-    disk.blocksize = 0;
     disk.numblocks = 0;
+    disk.blocksize = 0;
+    disk.lastBlock = 0;
+    disk.taskQueue = NULL;
     disk.requestQueue = NULL;
+    disk.currentRequest = NULL;
+    disk.signal = 0;
 
     //print("init %p\n", disk.requestQueue);
 
