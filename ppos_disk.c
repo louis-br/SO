@@ -2,13 +2,26 @@
 
 static disk_t disk;
 
+//macro que define o escalonador escolhido a partir do nome da função
+//mude aqui ou inclua -DDISK_MGR_SCHEDULER=(nome da função do escalonador) nos argumentos do compilador
 #ifndef DISK_MGR_SCHEDULER
 #define DISK_MGR_SCHEDULER disk_mgr_scheduler
-#endif
+#endif 
+
+void add_seek_time(int new, int last) {
+    int diff = new - last;
+    if (diff < 0) {
+        diff = -diff;
+    }
+    printf("blocos percorridos: %d + %d = ", disk.totalSeekTime, diff);
+    disk.totalSeekTime += diff;
+    printf("%d\n", disk.totalSeekTime);
+}
 
 disk_request_t *disk_mgr_scheduler() {
     // FCFS scheduler
     if (disk.requestQueue != NULL) {
+        add_seek_time(disk.requestQueue->block, disk.lastBlock);
         return disk.requestQueue;
     }
     return NULL;
@@ -38,6 +51,7 @@ disk_request_t *disk_mgr_scheduler_sstf() {
         }
         aux = aux->next;
     } while (aux != NULL && aux != disk.requestQueue);
+    add_seek_time(min->block, lastBlock);
     return min;
 }
 
@@ -68,28 +82,20 @@ disk_request_t *disk_mgr_scheduler_cscan() {
     if (min == NULL) {
         min = minGlobal;
     }
-    printf("cscan lastBlock: %d\n", lastBlock);
+    add_seek_time(min->block, lastBlock);
     return min;
 }
 
-void print_id(void* t) {
-    printf("%d ", ((task_t*)t)->id);
-}
-
 void disk_mgr_dispatcher () {
-    //print("hello dispatcher\n");
     while (1) {
-        printf("sem_disp: %d\n", disk.semaphore.value);
         sem_down(&disk.semaphore);
+
         if (disk.currentRequest != NULL && disk.signal) {
             disk.signal = 0;
             disk_request_t *request = disk.currentRequest;
             if (request->task->state == 's') { //PPOS_TASK_STATE_SUSPENDED
                 task_resume(request->task);
             }
-            /*else {
-                printf("DEAD REQUEST: write %d block %d state %c\n", request->write, request->block, request->task->state);
-            }*/
             disk.currentRequest = NULL;
             free(request);
         }
@@ -103,40 +109,27 @@ void disk_mgr_dispatcher () {
             else {
                 status = disk_cmd(DISK_CMD_READ, request->block, request->buffer);
             }
-            printf("request block: %d write: %d status: %d buffer: %s\n", request->block, request->write, status, (char*)request->buffer);
             if (status >= 0) {
                 disk.currentRequest = request;
-                int diff = request->block - disk.lastBlock;
-                if (diff < 0) {
-                    diff = -diff;
-                }
-                printf("blocos percorridos: %d + %d = ", disk.totalSeekTime, diff);
-                disk.totalSeekTime += diff;
-                printf("%d\n", disk.totalSeekTime);
                 disk.lastBlock = request->block;
                 queue_remove((queue_t**)&disk.requestQueue, (queue_t*)request);
             }
+            #ifdef DEBUG
+            printf("request block: %d write: %d status: %d buffer: %s\n", request->block, request->write, status, (char*)request->buffer);
+            #endif
         }
-        printf("sem_disp: %d\n", disk.semaphore.value);
-        queue_print("taskQueue: ", (queue_t*)disk.taskQueue, &print_id);
-        queue_print("readyQueue: ", (queue_t*)readyQueue, &print_id);
-        queue_print("sleepQueue: ", (queue_t*)sleepQueue, &print_id);
-        task_suspend(taskExec, &disk.taskQueue);//disk.taskQueue
+        task_suspend(taskExec, &disk.taskQueue);
+
         sem_up(&disk.semaphore);
-        //print("exec: %d diskdisp: %d disp: %d\n", taskExec->id, disk.dispatcher.id, taskDisp->id);
         task_switch(taskDisp);
     }
 }
 
 void disk_mgr_handler(int signum) {
-    printf("SIGNAL BEGIN\n");
     sem_down(&disk.semaphore);
     disk.signal = 1;
     sem_up(&disk.semaphore);
-    printf("SIGNAL END\n");
     task_switch(&disk.dispatcher);
-    //disk_mgr_dispatcher(1);
-    //print("sinal: %d", signum);
 }
 
 int disk_mgr_init (int *numBlocks, int *blockSize) {
@@ -150,8 +143,6 @@ int disk_mgr_init (int *numBlocks, int *blockSize) {
     disk.requestQueue = NULL;
     disk.currentRequest = NULL;
     disk.signal = 0;
-
-    //print("init %p\n", disk.requestQueue);
 
     sem_create(&disk.semaphore, 1);
 
@@ -180,7 +171,7 @@ int disk_mgr_init (int *numBlocks, int *blockSize) {
     return 0;
 }
 
-disk_request_t *disk_request_new(task_t *task, int write, int block, void *buffer) {//, void *buffer) {
+disk_request_t *disk_request_new(task_t *task, int write, int block, void *buffer) {
     disk_request_t *request = (disk_request_t*)malloc(sizeof(disk_request_t));
     if (request == NULL) {
         return NULL;
@@ -202,8 +193,6 @@ int disk_request_exec(int write, int block, void *buffer) {
         return -1;
     }
 
-    //printf("sem: %d\n", disk.semaphore.value);
-
     sem_down(&disk.semaphore);
 
     queue_append((queue_t**)&disk.requestQueue, (queue_t*)request);
@@ -216,21 +205,12 @@ int disk_request_exec(int write, int block, void *buffer) {
     if (state == 't') { //PPOS_TASK_STATE_TERMINATED
         return -1;
     }
-    //print("resume state: %c", state);
     if (state == 's' || state == 'r') { //PPOS_TASK_STATE_SUSPENDED, PPOS_TASK_STATE_READY
-        task_resume(dispatcher);//task_suspend(&disk.dispatcher, &readyQueue);  //task_resume não pode ser usado em tarefas suspensas por semáforos, libere os semáforos antes de chamar
+        task_resume(dispatcher); //task_resume não pode ser usado em tarefas suspensas por semáforos, libere os semáforos antes de chamar
     }
 
-    //print("switch\n");
-    //task_suspend(task, &sleepQueue);
-    //printf("sem: %d active: %d\n", disk.semaphore.value, disk.semaphore.active);
-    //disk.semaphore.value = 0;
-    //printf("sem_down taskQueue\n");
-    task_suspend(task, taskQueue); //disk.taskQueue
-    //printf("sem_up taskQueue\n");
+    task_suspend(task, taskQueue);
     task_switch(taskDisp);
-    //print("return\n");
-    //while (1) {};
     return 0;
 }
 

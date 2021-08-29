@@ -11,6 +11,6 @@ disco1:
 	gcc -Wall -o disco1 ppos_disk.c disk.c pingpong-disco1.c ppos-core-aux.c libppos_static.a -lrt -DDEBUG -DDISK_MGR_SCHEDULER=$(DISK_SCHEDULER)
 disco2:	
 	cp disk-original.dat disk.dat
-	gcc -Wall -o disco2 ppos_disk.c disk.c pingpong-disco2.c ppos-core-aux.c libppos_static.a -lrt -DDEBUG -DDISK_MGR_SCHEDULER=$(DISK_SCHEDULER)
+	gcc -Wall -o disco2 ppos_disk.c disk.c pingpong-disco2.c ppos-core-aux.c libppos_static.a -lrt -DDISK_MGR_SCHEDULER=$(DISK_SCHEDULER)
 clean:
 	rm -f ppos-scheduler ppos-preempcao ppos-contab disco1 disco2
